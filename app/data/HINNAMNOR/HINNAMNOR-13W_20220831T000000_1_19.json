@@ -1,0 +1,77 @@
+{
+    "id": "HINNAMNOR-13W_20220831T000000_1_19",
+    "conformsTo": [
+        "http://www.wmo.int/spec/om-profile-1/1.0/req/geojson"
+    ],
+    "reportId": "HINNAMNOR-13W_20220831T000000_1",
+    "type": "Feature",
+    "geometry": {
+        "type": "Point",
+        "coordinates": [
+            130.2,
+            25.7
+        ]
+    },
+    "properties": {
+        "wigos_station_identifier": "HINNAMNOR-13W",
+        "phenomenonTime": "2022-08-31T00:00:00Z",
+        "resultTime": "2022-08-31T00:00:00Z",
+        "name": "pressure_reduced_to_mean_sea_level",
+        "value": 966.0,
+        "units": "hPa",
+        "description": null,
+        "metadata": [
+            {
+                "name": "centre",
+                "value": 98,
+                "units": "Common CODE TABLE C-1",
+                "description": null
+            },
+            {
+                "name": "generating_application",
+                "value": 1,
+                "units": "CODE TABLE defined by originating/generating centre",
+                "description": null
+            },
+            {
+                "name": "storm_identifier",
+                "value": null,
+                "units": "CCITT IA5",
+                "description": "13W"
+            },
+            {
+                "name": "long_storm_name",
+                "value": null,
+                "units": "CCITT IA5",
+                "description": "HINNAMNOR"
+            },
+            {
+                "name": "technique_for_making_up_initial_perturbations",
+                "value": 2,
+                "units": "CODE TABLE",
+                "description": "SINGULAR"
+            },
+            {
+                "name": "ensemble_member_number",
+                "value": 2,
+                "units": "Numeric",
+                "description": null
+            },
+            {
+                "name": "ensemble_forecast_type",
+                "value": 4,
+                "units": "CODE TABLE",
+                "description": "PERTURBED"
+            },
+            {
+                "name": "meteorological_attribute_significance",
+                "value": 4,
+                "units": "CODE TABLE",
+                "description": "LOCATION"
+            }
+        ],
+        "index": 19,
+        "fxxyyy": "010051",
+        "subset": 1
+    }
+}

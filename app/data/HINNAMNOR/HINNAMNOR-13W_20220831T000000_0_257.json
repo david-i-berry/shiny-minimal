@@ -1,0 +1,98 @@
+{
+    "id": "HINNAMNOR-13W_20220831T000000_0_257",
+    "conformsTo": [
+        "http://www.wmo.int/spec/om-profile-1/1.0/req/geojson"
+    ],
+    "reportId": "HINNAMNOR-13W_20220831T000000_0",
+    "type": "Feature",
+    "geometry": {
+        "type": "Point",
+        "coordinates": [
+            125.8,
+            22.7
+        ]
+    },
+    "properties": {
+        "wigos_station_identifier": "HINNAMNOR-13W",
+        "phenomenonTime": "2022-08-31T00:00:00Z/2022-09-01T06:00:00Z",
+        "resultTime": "2022-09-01T06:00:00Z",
+        "name": "effective_radius_with_respect_to_wind_speeds_above_threshold",
+        "value": 148200.0,
+        "units": "m",
+        "description": null,
+        "metadata": [
+            {
+                "name": "centre",
+                "value": 98,
+                "units": "Common CODE TABLE C-1",
+                "description": null
+            },
+            {
+                "name": "generating_application",
+                "value": 1,
+                "units": "CODE TABLE defined by originating/generating centre",
+                "description": null
+            },
+            {
+                "name": "storm_identifier",
+                "value": null,
+                "units": "CCITT IA5",
+                "description": "13W"
+            },
+            {
+                "name": "long_storm_name",
+                "value": null,
+                "units": "CCITT IA5",
+                "description": "HINNAMNOR"
+            },
+            {
+                "name": "technique_for_making_up_initial_perturbations",
+                "value": 2,
+                "units": "CODE TABLE",
+                "description": "SINGULAR"
+            },
+            {
+                "name": "ensemble_member_number",
+                "value": 1,
+                "units": "Numeric",
+                "description": null
+            },
+            {
+                "name": "ensemble_forecast_type",
+                "value": 4,
+                "units": "CODE TABLE",
+                "description": "PERTURBED"
+            },
+            {
+                "name": "bearing_or_azimuth",
+                "value": [
+                    0.0,
+                    90.0
+                ],
+                "units": "deg",
+                "description": null
+            },
+            {
+                "name": "meteorological_attribute_significance",
+                "value": 3,
+                "units": "CODE TABLE",
+                "description": "LOCATION"
+            },
+            {
+                "name": "time_significance",
+                "value": 4,
+                "units": "CODE TABLE",
+                "description": "FORECAST"
+            },
+            {
+                "name": "wind_speed_threshold",
+                "value": 18,
+                "units": "m/s",
+                "description": null
+            }
+        ],
+        "index": 257,
+        "fxxyyy": "019004",
+        "subset": 0
+    }
+}
