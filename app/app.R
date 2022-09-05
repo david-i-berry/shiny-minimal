@@ -6,6 +6,7 @@ library(geojsonsf)
 library(sf)
 library(jsonlite)
 library(geosphere)
+library(pbapply)
 
 # set timezone to use
 Sys.setenv(TZ='UTC')
@@ -41,15 +42,38 @@ load_data <- function(system_name, ensemble_member){
     pat <- paste0(system_name,"_20220831T000000_",ensemble_member,"_.+json")
     # get list of files to process
     files <- list.files(DATA_DIR,pat)
-    if(length(files)==0)return(NULL)
+      if(length(files)==0){
+        cat("No data found!\n", file=stderr())
+        return(NULL)
+      }
     # read
-    datain <- lapply(paste0(DATA_DIR,files), fromJSON)
-    # convert polygons
-    datain <- lapply( datain, make_polygon)
-    # now convert to simple features
-    datain <- lapply( datain, FUN = function(X){
-        geojson_sf( toJSON(X, auto_unbox = TRUE))
+    progress <- 0
+    withProgress(message="Loading features", value = 0, {
+        datain <- pblapply(files, FUN = function(X, n){
+            progress <<- progress + 1
+            incProgress(1/n, detail=paste0("progress: ", progress," / ",n))
+            fromJSON(paste0(DATA_DIR,X))
+         }, n = length(files))
     })
+    # convert polygons
+    withProgress(message="Extracting polygons", value=0, {
+        progress <- 0
+        datain <- pblapply(datain, FUN = function(X,n){
+            progress <<- progress + 1
+            incProgress(1/n, detail=paste0("progress: ", progress," / ",n))
+            make_polygon(X)
+        }, n = length(files))
+    })
+    # now convert to simple features
+    withProgress(message="Converting to simple features", value=0, {
+        progress <- 0
+        datain <- pblapply(datain , FUN = function(X, n){
+            progress <<- progress + 1
+            incProgress(1/n, detail=paste0("progress: ", progress, " / ",n))
+            geojson_sf(toJSON(X, auto_unbox=TRUE))
+        }, n = length(files))
+    })
+
     # form list to data frame
     datain <- do.call("rbind", datain)
     datain$resultTime <- as.POSIXct(datain$resultTime,format = "%Y-%m-%dT%H:%M:%SZ")
@@ -64,6 +88,10 @@ get_collections <- function(){
 
 get_forecast_times <- function(){
     "2022-08-31T00:00Z"
+}
+
+calculate_strike_probability <- function(the_data){
+
 }
 
 ####################
@@ -118,7 +146,7 @@ ui <- navbarPage("Fiji WIS2 demo", id="nav",
                 div(
                 sliderInput("datetime","Select hour",
                             min=as.POSIXct("2022-08-31", format="%Y-%m-%d"),
-                            max = as.POSIXct("2022-09-06 18:00", format="%Y-%m-%d %H:%M"),
+                            max=as.POSIXct("2022-09-11 00:00", format="%Y-%m-%d %H:%M"),
                             value = as.POSIXct("2022-08-31", format="%Y-%m-%d"),
                             step = 3600*6, width="100%",
                             ticks=FALSE, animate = animationOptions(interval = 250, loop=TRUE),
@@ -149,11 +177,6 @@ ui <- navbarPage("Fiji WIS2 demo", id="nav",
 
 # server logic to draw map
 server <- function(input, output, session) {
-  # load data
-  get_data <- reactive({
-    load_data(input$collection,input$ensembleMember)
-  }) %>% bindCache(input$collection,input$ensembleMember)
-  # datain <- load_data("HINNAMNOR-13W",1)
   # generate base map
   output$map <- renderLeaflet({
     m <- leaflet( options=leafletOptions(zoomControl=FALSE)) %>%
@@ -164,12 +187,20 @@ server <- function(input, output, session) {
     }
   )
 
+  leafletProxy("map")
+
+    # load data
+    get_data <- reactive({load_data(input$collection,input$ensembleMember)}) %>%
+        bindCache(input$collection,input$ensembleMember)
+    # observe and draw wind quadrants on map if data
     observe({
-        timestep <- input$datetime
         thedata <- get_data()
         proxy <- leafletProxy("map") %>% clearShapes() %>% clearMarkers()
-        if( !is.null(thedata) ){
+        if( !is.null(thedata) & input$anim){
+            timestep <- input$datetime
             ss <- subset(thedata, resultTime == input$datetime)
+            speeds <- subset(thedata, name== "wind_speed_at10m" )
+            pressures <- subset(thedata, name== "pressure_reduced_to_mean_sea_level" )
             proxy <- proxy %>% addPolygons(
                 data = subset(ss, name== "wind_speed_threshold" & value == 18 ),
                 fillColor="green",
@@ -185,7 +216,12 @@ server <- function(input, output, session) {
                 fillColor="red",
                 fillOpacity=0.5,
                 stroke=FALSE)
-
+            popup <- paste0(
+                "<h4>",input$collection,"</h4>",
+                "Timestep: ", speeds$resultTime,"<br/>",
+                "Minimum pressure: ",pressures$value," hPa<br/>",
+                "Maximum wind speed: ",speeds$value*3.6,"km/h"
+            )
             proxy <- proxy %>%
                 addPolylines(data = st_coordinates(subset(thedata, name== "wind_speed_at10m" )), color="red", opacity=0.5) %>%
                 addCircles( data = subset(thedata, name== "wind_speed_at10m" ), radius = 25E3,
@@ -203,13 +239,14 @@ server <- function(input, output, session) {
 
   observe({
     thedata <- get_data()
-    speeds <- subset(thedata, name== "wind_speed_at10m" )
-    pressures <- subset(thedata, name== "pressure_reduced_to_mean_sea_level" )
     proxy <- leafletProxy("map") %>% clearShapes()
+
     if( !is.null(thedata) ){
+        speeds <- subset(thedata, name== "wind_speed_at10m" )
+        pressures <- subset(thedata, name== "pressure_reduced_to_mean_sea_level" )
         if(input$map_labels){
             proxy <- proxy %>%
-                    addLabelOnlyMarkers(data = speeds, label=paste(speeds$value, speeds$units),
+                    addLabelOnlyMarkers(data = speeds, label=paste(speeds$value*3.6, 'km/h'),
                         labelOptions = labelOptions(noHide = TRUE, direction = 'top', textOnly = TRUE, textsize="16pt",
                             style = list("color" = "white"))) %>%
                     addLabelOnlyMarkers(data = speeds, label=paste(pressures$value, pressures$units),
@@ -218,45 +255,53 @@ server <- function(input, output, session) {
         }else{
             proxy <- proxy %>% clearMarkers()
         }
+        popup <- paste0(
+            "<h4>",input$collection,"</h4>",
+            "Timestep: ", speeds$resultTime,"<br/>",
+            "Minimum pressure: ",pressures$value," hPa<br/>",
+            "Maximum wind speed: ",speeds$value*3.6,"km/h"
+        )
         proxy <- proxy %>%
             addPolylines(data = st_coordinates(speeds), color="red", opacity=0.5) %>%
-            addCircles(data = speeds, radius = 25E3, fillColor="red", fillOpacity=0.5,stroke=FALSE)
+            addCircles(data = speeds, radius = 25E3, fillColor="red", fillOpacity=0.5,stroke=FALSE, popup=popup)
     }
     proxy
   })
 
-
-  observe({
-    thedata <- get_data()
-    speeds <- subset(thedata, name== "wind_speed_at10m" )
-    pressures <- subset(thedata, name== "pressure_reduced_to_mean_sea_level" )
-    output$slp_plot <- renderPlot({
-        plot(value ~ resultTime, pressures, ylab = "Pressure (hPa)", xlab="", type="l", main="Minimum pressure")
-        if(!is.null( input$datetime)){
-            abline(v=input$datetime, col="red", lty = 2)
-            idx <- which(pressures$resultTime == input$datetime)
-            if(length(idx) == 1){
-                x <- min(pressures$resultTime, na.rm=TRUE)
-                y <- min(pressures$value, na.rm = TRUE) +
-                    0.9*(max(pressures$value, na.rm = TRUE) - min(pressures$value, na.rm = TRUE))
-                text(x=x,y=y,labels=paste(pressures$value[idx],pressures$units[idx]), pos=4)
+    # time series plots
+    observe({
+        thedata <- get_data()
+        if( ! is.null(thedata) ){
+        speeds <- subset(thedata, name== "wind_speed_at10m" )
+        pressures <- subset(thedata, name== "pressure_reduced_to_mean_sea_level" )
+        output$slp_plot <- renderPlot({
+            plot(value ~ resultTime, pressures, ylab = "Pressure (hPa)", xlab="", type="l", main="Minimum pressure")
+            if(!is.null( input$datetime)){
+                abline(v=input$datetime, col="red", lty = 2)
+                idx <- which(pressures$resultTime == input$datetime)
+                if(length(idx) == 1){
+                    x <- min(pressures$resultTime, na.rm=TRUE)
+                    y <- min(pressures$value, na.rm = TRUE) +
+                        0.9*(max(pressures$value, na.rm = TRUE) - min(pressures$value, na.rm = TRUE))
+                    text(x=x,y=y,labels=paste(pressures$value[idx],pressures$units[idx]), pos=4)
+                }
             }
+        })
+        output$wspd_plot <- renderPlot({
+            plot(3.6*value ~ resultTime, speeds, ylab = "Wind speed (km/h)", ylim=c(0,50*3.6), xlab = "", type="l", main="Maximum wind speed")
+            if(!is.null( input$datetime)){
+                abline(v=input$datetime, col="red", lty = 2)
+                idx <- which(speeds$resultTime == input$datetime)
+                if(length(idx) == 1){
+                    x <- min(speeds$resultTime, na.rm=TRUE)
+                    y <- 45*3.6 #min(speeds$value, na.rm = TRUE) +
+                        #0.9*(max(speeds$value, na.rm = TRUE) - min(speeds$value, na.rm = TRUE))
+                    text(x=x,y=y,labels=paste(speeds$value[idx]*3.6,"km/h"), pos=4)
+                }
+            }
+        })
         }
     })
-    output$wspd_plot <- renderPlot({
-        plot(value ~ resultTime, speeds, ylab = "Wind speed (m/s)", ylim=c(0,50), xlab = "", type="l", main="Maximum wind speed")
-        if(!is.null( input$datetime)){
-            abline(v=input$datetime, col="red", lty = 2)
-            idx <- which(speeds$resultTime == input$datetime)
-            if(length(idx) == 1){
-                x <- min(speeds$resultTime, na.rm=TRUE)
-                y <- 45 #min(speeds$value, na.rm = TRUE) +
-                    #0.9*(max(speeds$value, na.rm = TRUE) - min(speeds$value, na.rm = TRUE))
-                text(x=x,y=y,labels=paste(speeds$value[idx],speeds$units[idx]), pos=4)
-            }
-        }
-    })
-  })
 
   observe({
     thedata <- get_data()
