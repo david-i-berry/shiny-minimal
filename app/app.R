@@ -15,10 +15,13 @@ ui <- bootstrapPage(
 
 # server logic to draw map
 server <- function(input, output, session) {
+  # WMS base for ECMWF
+  wms_basurl <- "https://apps.ecmwf.int/wms/?token=public&"
   # generate base map
   output$map <- renderLeaflet({
     m <- leaflet() %>% addProviderTiles("Esri.WorldImagery") %>% addScaleBar(position = "bottomleft") %>%
-      setView(lat = 46.223551, lng = 6.146139, zoom = 6)
+      setView(lat = 46.223551, lng = 6.146139, zoom = 6) %>%
+      addWMSTiles(wms_basurl, layers = "genesis_td", options = WMSTileOptions(format = "image/png"))
     m
     }
   )
