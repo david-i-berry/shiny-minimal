@@ -1,0 +1,11 @@
+version: "3.9"
+
+services:
+  shiny:
+    build: .
+    ports:
+      - 3838:3838
+    volumes:
+      - ./app:/srv/shiny-server/
+      - ./logs:/var/log/shiny-server/
+    command: ["/usr/bin/shiny-server"]
